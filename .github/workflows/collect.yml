@@ -51,7 +51,11 @@ jobs:
               m = re.search(anchor, body)
               start = max(0, (m.start() if m else 0) - 200)
               out.append("--- html around '%s' (%s) ---" % (anchor, "found" if m else "NOT FOUND, showing start"))
-              out.append(body[start:start + 3500])
+              out.append(body[start:start + 600])
+              k = body.find('href="/values/', m.end() if m else 0)
+              if k >= 0:
+                  out.append("--- html of first /values/ link after that (a fruit card?) ---")
+                  out.append(body[max(0, k - 300):k + 3500])
           text = "\n".join(out)
           print(text)
           with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as f:
