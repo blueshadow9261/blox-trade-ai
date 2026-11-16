@@ -1,0 +1,375 @@
+{
+ "version": "none",
+ "source": "none (names only; no values shipped)",
+ "items": [
+  {
+   "id": "rocket",
+   "name": "Rocket",
+   "category": "fruit",
+   "rarity": null,
+   "value": null,
+   "demand": null,
+   "updated": null
+  },
+  {
+   "id": "spin",
+   "name": "Spin",
+   "category": "fruit",
+   "rarity": null,
+   "value": null,
+   "demand": null,
+   "updated": null
+  },
+  {
+   "id": "blade",
+   "name": "Blade",
+   "category": "fruit",
+   "rarity": null,
+   "value": null,
+   "demand": null,
+   "updated": null
+  },
+  {
+   "id": "spring",
+   "name": "Spring",
+   "category": "fruit",
+   "rarity": null,
+   "value": null,
+   "demand": null,
+   "updated": null
+  },
+  {
+   "id": "bomb",
+   "name": "Bomb",
+   "category": "fruit",
+   "rarity": null,
+   "value": null,
+   "demand": null,
+   "updated": null
+  },
+  {
+   "id": "smoke",
+   "name": "Smoke",
+   "category": "fruit",
+   "rarity": null,
+   "value": null,
+   "demand": null,
+   "updated": null
+  },
+  {
+   "id": "spike",
+   "name": "Spike",
+   "category": "fruit",
+   "rarity": null,
+   "value": null,
+   "demand": null,
+   "updated": null
+  },
+  {
+   "id": "flame",
+   "name": "Flame",
+   "category": "fruit",
+   "rarity": null,
+   "value": null,
+   "demand": null,
+   "updated": null
+  },
+  {
+   "id": "ice",
+   "name": "Ice",
+   "category": "fruit",
+   "rarity": null,
+   "value": null,
+   "demand": null,
+   "updated": null
+  },
+  {
+   "id": "sand",
+   "name": "Sand",
+   "category": "fruit",
+   "rarity": null,
+   "value": null,
+   "demand": null,
+   "updated": null
+  },
+  {
+   "id": "dark",
+   "name": "Dark",
+   "category": "fruit",
+   "rarity": null,
+   "value": null,
+   "demand": null,
+   "updated": null
+  },
+  {
+   "id": "eagle",
+   "name": "Eagle",
+   "category": "fruit",
+   "rarity": null,
+   "value": null,
+   "demand": null,
+   "updated": null
+  },
+  {
+   "id": "diamond",
+   "name": "Diamond",
+   "category": "fruit",
+   "rarity": null,
+   "value": null,
+   "demand": null,
+   "updated": null
+  },
+  {
+   "id": "light",
+   "name": "Light",
+   "category": "fruit",
+   "rarity": null,
+   "value": null,
+   "demand": null,
+   "updated": null
+  },
+  {
+   "id": "rubber",
+   "name": "Rubber",
+   "category": "fruit",
+   "rarity": null,
+   "value": null,
+   "demand": null,
+   "updated": null
+  },
+  {
+   "id": "ghost",
+   "name": "Ghost",
+   "category": "fruit",
+   "rarity": null,
+   "value": null,
+   "demand": null,
+   "updated": null
+  },
+  {
+   "id": "magma",
+   "name": "Magma",
+   "category": "fruit",
+   "rarity": null,
+   "value": null,
+   "demand": null,
+   "updated": null
+  },
+  {
+   "id": "quake",
+   "name": "Quake",
+   "category": "fruit",
+   "rarity": null,
+   "value": null,
+   "demand": null,
+   "updated": null
+  },
+  {
+   "id": "buddha",
+   "name": "Buddha",
+   "category": "fruit",
+   "rarity": null,
+   "value": null,
+   "demand": null,
+   "updated": null
+  },
+  {
+   "id": "love",
+   "name": "Love",
+   "category": "fruit",
+   "rarity": null,
+   "value": null,
+   "demand": null,
+   "updated": null
+  },
+  {
+   "id": "creation",
+   "name": "Creation",
+   "category": "fruit",
+   "rarity": null,
+   "value": null,
+   "demand": null,
+   "updated": null
+  },
+  {
+   "id": "spider",
+   "name": "Spider",
+   "category": "fruit",
+   "rarity": null,
+   "value": null,
+   "demand": null,
+   "updated": null
+  },
+  {
+   "id": "sound",
+   "name": "Sound",
+   "category": "fruit",
+   "rarity": null,
+   "value": null,
+   "demand": null,
+   "updated": null
+  },
+  {
+   "id": "phoenix",
+   "name": "Phoenix",
+   "category": "fruit",
+   "rarity": null,
+   "value": null,
+   "demand": null,
+   "updated": null
+  },
+  {
+   "id": "portal",
+   "name": "Portal",
+   "category": "fruit",
+   "rarity": null,
+   "value": null,
+   "demand": null,
+   "updated": null
+  },
+  {
+   "id": "rumble",
+   "name": "Rumble",
+   "category": "fruit",
+   "rarity": null,
+   "value": null,
+   "demand": null,
+   "updated": null
+  },
+  {
+   "id": "pain",
+   "name": "Pain",
+   "category": "fruit",
+   "rarity": null,
+   "value": null,
+   "demand": null,
+   "updated": null
+  },
+  {
+   "id": "blizzard",
+   "name": "Blizzard",
+   "category": "fruit",
+   "rarity": null,
+   "value": null,
+   "demand": null,
+   "updated": null
+  },
+  {
+   "id": "gravity",
+   "name": "Gravity",
+   "category": "fruit",
+   "rarity": null,
+   "value": null,
+   "demand": null,
+   "updated": null
+  },
+  {
+   "id": "mammoth",
+   "name": "Mammoth",
+   "category": "fruit",
+   "rarity": null,
+   "value": null,
+   "demand": null,
+   "updated": null
+  },
+  {
+   "id": "trex",
+   "name": "T-Rex",
+   "category": "fruit",
+   "rarity": null,
+   "value": null,
+   "demand": null,
+   "updated": null
+  },
+  {
+   "id": "dough",
+   "name": "Dough",
+   "category": "fruit",
+   "rarity": null,
+   "value": null,
+   "demand": null,
+   "updated": null
+  },
+  {
+   "id": "shadow",
+   "name": "Shadow",
+   "category": "fruit",
+   "rarity": null,
+   "value": null,
+   "demand": null,
+   "updated": null
+  },
+  {
+   "id": "venom",
+   "name": "Venom",
+   "category": "fruit",
+   "rarity": null,
+   "value": null,
+   "demand": null,
+   "updated": null
+  },
+  {
+   "id": "control",
+   "name": "Control",
+   "category": "fruit",
+   "rarity": null,
+   "value": null,
+   "demand": null,
+   "updated": null
+  },
+  {
+   "id": "spirit",
+   "name": "Spirit",
+   "category": "fruit",
+   "rarity": null,
+   "value": null,
+   "demand": null,
+   "updated": null
+  },
+  {
+   "id": "dragon",
+   "name": "Dragon",
+   "category": "fruit",
+   "rarity": null,
+   "value": null,
+   "demand": null,
+   "updated": null
+  },
+  {
+   "id": "leopard",
+   "name": "Leopard",
+   "category": "fruit",
+   "rarity": null,
+   "value": null,
+   "demand": null,
+   "updated": null
+  },
+  {
+   "id": "kitsune",
+   "name": "Kitsune",
+   "category": "fruit",
+   "rarity": null,
+   "value": null,
+   "demand": null,
+   "updated": null
+  },
+  {
+   "id": "yeti",
+   "name": "Yeti",
+   "category": "fruit",
+   "rarity": null,
+   "value": null,
+   "demand": null,
+   "updated": null
+  },
+  {
+   "id": "gas",
+   "name": "Gas",
+   "category": "fruit",
+   "rarity": null,
+   "value": null,
+   "demand": null,
+   "updated": null
+  }
+ ]
+}
