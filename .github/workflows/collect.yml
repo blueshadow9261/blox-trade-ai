@@ -28,38 +28,46 @@ jobs:
         continue-on-error: true
         run: |
           python3 - <<'PY'
-          import os, re, urllib.request
+          import os, re, html, time, urllib.request
           UA = "BloxTradeAI-Collector/1.0 (+https://github.com/${{ github.repository }})"
-          out = []
+          NAMES = ["Hellfire Gas","Arcsteel Magnet","Starlight Gravity","Runic Fiend Yeti","Lime Blade","Fiend Yeti","Ember Dragon","Meme Fruit","Divine Portal","Galaxy Kitsune","Crimson Kitsune","Werewolf","Torment Pain","Topaz Diamond","Yellow Lightning","Thermite Bomb","Super Spirit Pain","Sadness Pain","Rose Quartz Diamond","Ruby Diamond","Red Lightning","Purple Lightning","Green Lightning","Frustration Pain","Nuclear Bomb","Eagle Requiem","Emerald Diamond","Eagle Glacier","Celestial Pain","Eagle Matrix","Celebration Bomb","Azura Bomb"]
           def get(url):
+              time.sleep(2)
               try:
                   r = urllib.request.urlopen(urllib.request.Request(url, headers={"User-Agent": UA}), timeout=20)
                   return r.status, r.read(3000000).decode("utf-8", "replace")
               except Exception as e:
-                  return getattr(e, "code", "ERR"), str(e)
-          for host in ("https://bloxfruitsvalues.gg", "https://eggvalues.com"):
-              st, body = get(host + "/robots.txt")
-              out.append("## robots.txt " + host + " -> HTTP %s" % st)
-              out.append("\n".join(l for l in body.splitlines() if l.lower().startswith(("user-agent", "disallow", "allow", "crawl")))[:600])
-          pages = [("https://bloxfruitsvalues.gg/values/rarity/mythical", r"\d+ items"),
-                   ("https://eggvalues.com/blox-fruits/values/", r"Physical value")]
-          for url, anchor in pages:
-              st, body = get(url)
-              out.append("\n## " + url + " -> HTTP %s, %d chars" % (st, len(body)))
-              out.append("links to /values/: %d | table tags: %d | script tags: %d" % (
-                  body.count('href="/values/'), body.count("<table"), body.count("<script")))
-              m = re.search(anchor, body)
-              start = max(0, (m.start() if m else 0) - 200)
-              out.append("--- html around '%s' (%s) ---" % (anchor, "found" if m else "NOT FOUND, showing start"))
-              out.append(body[start:start + 600])
-              k = body.find('href="/values/', m.end() if m else 0)
-              if k >= 0:
-                  out.append("--- html of first /values/ link after that (a fruit card?) ---")
-                  out.append(body[max(0, k - 300):k + 3500])
-          text = "\n".join(out)
-          print(text)
+                  return getattr(e, "code", "ERR"), ""
+          def text(b):
+              return re.sub(r"\s+", " ", html.unescape(re.sub(r"<[^>]+>", " ", re.sub(r"(?s)<(script|style).*?</\1>", " ", b)))).lower()
+          pages = {"bfv/values": "https://bloxfruitsvalues.gg/values", "egg": "https://eggvalues.com/blox-fruits/values/"}
+          for t in ("mythical", "legendary", "rare", "uncommon", "common"):
+              pages["bfv/" + t] = "https://bloxfruitsvalues.gg/values/rarity/" + t
+          raw, txt, out = {}, {}, []
+          for k, u in pages.items():
+              st, b = get(u)
+              raw[k], txt[k] = b, text(b)
+              out.append("%s -> HTTP %s, %d chars" % (k, st, len(b)))
+          out.append("\n## Where each requested name appears (page keys)")
+          for n in NAMES:
+              out.append("%-22s %s" % (n, [k for k in txt if n.lower() in txt[k]] or "NOWHERE"))
+          out.append("\n## bloxfruitsvalues.gg /values: distinct links")
+          hrefs = sorted(set(re.findall(r'href="(/values[^"#?]*)"', raw["bfv/values"])))
+          out.append(" ".join(h for h in hrefs if h.count("/") <= 2)[:1500])
+          out.append("\n## eggvalues tables")
+          for i, t in enumerate(re.findall(r"(?s)<table.*?</table>", raw["egg"])):
+              rows = re.findall(r"(?s)<tr.*?</tr>", t)
+              out.append("table %d: %d rows" % (i, len(rows)))
+              for r in rows[:3]:
+                  out.append("  " + r[:900])
+              for n in NAMES:
+                  m = [r for r in rows if n.lower() in text(r)]
+                  if m:
+                      out.append("  >> " + n + ": " + m[0][:700])
+          s = "\n".join(out)
+          print(s)
           with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as f:
-              f.write("### Live page diagnostic\n~~~\n" + text + "\n~~~\n")
+              f.write("### Live page diagnostic\n~~~\n" + s + "\n~~~\n")
           PY
       - name: Restore previous published data
         run: git clone --depth 1 --branch gh-pages "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" site || mkdir site
