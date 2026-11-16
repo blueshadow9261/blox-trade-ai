@@ -24,6 +24,39 @@ jobs:
       - name: Test collector
         working-directory: backend
         run: python -m unittest discover -s tests
+      - name: Diagnose live pages (writes a report to the run summary)
+        continue-on-error: true
+        run: |
+          python3 - <<'PY'
+          import os, re, urllib.request
+          UA = "BloxTradeAI-Collector/1.0 (+https://github.com/${{ github.repository }})"
+          out = []
+          def get(url):
+              try:
+                  r = urllib.request.urlopen(urllib.request.Request(url, headers={"User-Agent": UA}), timeout=20)
+                  return r.status, r.read(3000000).decode("utf-8", "replace")
+              except Exception as e:
+                  return getattr(e, "code", "ERR"), str(e)
+          for host in ("https://bloxfruitsvalues.gg", "https://eggvalues.com"):
+              st, body = get(host + "/robots.txt")
+              out.append("## robots.txt " + host + " -> HTTP %s" % st)
+              out.append("\n".join(l for l in body.splitlines() if l.lower().startswith(("user-agent", "disallow", "allow", "crawl")))[:600])
+          pages = [("https://bloxfruitsvalues.gg/values/rarity/mythical", r"\d+ items"),
+                   ("https://eggvalues.com/blox-fruits/values/", r"Physical value")]
+          for url, anchor in pages:
+              st, body = get(url)
+              out.append("\n## " + url + " -> HTTP %s, %d chars" % (st, len(body)))
+              out.append("links to /values/: %d | table tags: %d | script tags: %d" % (
+                  body.count('href="/values/'), body.count("<table"), body.count("<script")))
+              m = re.search(anchor, body)
+              start = max(0, (m.start() if m else 0) - 200)
+              out.append("--- html around '%s' (%s) ---" % (anchor, "found" if m else "NOT FOUND, showing start"))
+              out.append(body[start:start + 3500])
+          text = "\n".join(out)
+          print(text)
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as f:
+              f.write("### Live page diagnostic\n~~~\n" + text + "\n~~~\n")
+          PY
       - name: Restore previous published data
         run: git clone --depth 1 --branch gh-pages "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" site || mkdir site
       - name: Collect
