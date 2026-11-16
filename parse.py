@@ -77,8 +77,8 @@ _CARD = re.compile(
     r"(?:@@SLUG:(?P=slug)@@ )?(?:@@IMG:\S+?@@ )?"
     r"(?P<name>[^@]+?) (?P<ftype>[A-Za-z]+) Regular Permanent "
     r"(?P<value>" + NUM + r")\s*(?P<trend>Stable|Overpaid|Rising|Dropping)? ?"
-    r"Demand\s*(?P<demand>\d{1,2})/10(?: Demand \d+ out of 10)?"
-    r"(?: Dealer \$(?P<beli>" + NUM + r"))?")
+    r"Demand\s*(?P<demand>\d{1,2})\s*/\s*10(?: Demand \d+ out of 10)?"
+    r"(?: Dealer \$\s*(?P<beli>" + NUM + r"))?")
 
 def parse_list_page(html, tier):
     """Return list of raw cards for one rarity page. Raises ParseError if the card count does

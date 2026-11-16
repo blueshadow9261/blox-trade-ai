@@ -47,8 +47,10 @@ def slugify(name):
     return s
 
 def name_key(name):
-    """Order-insensitive key so 'Dragon (West)' matches 'West Dragon'."""
-    return " ".join(sorted(re.findall(r"[a-z0-9]+", name.lower())))
+    """Order-insensitive key so 'Dragon (West form)' matches 'West Dragon'."""
+    return " ".join(sorted(w for w in re.findall(r"[a-z0-9]+", name.lower()) if w != "form"))
+
+_CHIPS = re.compile(r"\s*(Lists disagree)\s*$", re.I)
 
 def _amount(cell):
     m = re.match(r"\s*(\d[\d.,]*[KMBT]?)\b", cell or "", re.I)
@@ -84,7 +86,7 @@ def parse_values_page(html):
             if any("disagree" in c.lower() for c in r):
                 flags.append("eggvalues: lists disagree")
             out.append({
-                "name": r[0].strip(), "physical_value": phys, "permanent_value": _amount(r[mv]),
+                "name": _CHIPS.sub("", r[0]).strip(), "physical_value": phys, "permanent_value": _amount(r[mv]),
                 "physical_demand": _demand(r[pd]) if pd is not None and pd < len(r) else None,
                 "permanent_demand": _demand(r[md]) if md is not None and md < len(r) else None,
                 "fruit_type": r[ty].strip() if ty is not None and ty < len(r) else None,

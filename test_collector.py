@@ -211,6 +211,48 @@ EGG_PAGE = """<html><body><table><tr><th>Fruit</th><th>Type</th><th>Physical val
 <tr><td>Brand New</td><td>Natural</td><td>1M</td><td>1/10</td><td>2M</td><td>1/10</td></tr>
 <tr><td>Broken</td><td>Natural</td><td>n/a</td><td>1/10</td><td>2M</td><td>1/10</td></tr></table></body></html>"""
 
+REAL_EGG = ('<div class="tblwrap"><table><thead><tr><th>Fruit</th><th>Type</th><th class="num">Physical value</th>'
+ '<th>Physical demand</th><th class="num">Permanent value</th><th>Permanent demand</th></tr></thead><tbody>'
+ '<tr><td><img class="thumb" src="/a.webp" alt=""> <a href="/blox-fruits/fruits/dragon/">Dragon (West form)</a> '
+ '<span class="chip">Lists disagree</span></td><td>Beast</td><td class="num gold">2.76B</td><td>9/10</td>'
+ '<td class="num">5.04B</td><td>9/10</td></tr>'
+ '<tr><td><a href="/x/venom/">Venom</a> <span class="chip">Lists disagree</span></td><td>Natural</td>'
+ '<td class="num gold">120M</td><td>10/10</td><td class="num">Not published *</td><td>4/10</td></tr>'
+ '<tr><td><a href="/x/gas/">Gas</a></td><td>Elemental</td><td class="num gold">60M</td><td>10/10</td>'
+ '<td class="num">2.31B</td><td>7/10</td></tr></tbody></table></div>')
+
+class RealEggMarkup(unittest.TestCase):
+    def test_real_layout(self):
+        rows = egg.parse_values_page(REAL_EGG)
+        self.assertEqual([r["name"] for r in rows], ["Dragon (West form)", "Venom", "Gas"])
+        self.assertEqual(rows[0]["permanent_value"], 5_040_000_000)
+        self.assertIsNone(rows[1]["permanent_value"])
+        self.assertIn("eggvalues: lists disagree", rows[1]["flags"])
+        self.assertEqual(egg.name_key("Dragon (West form)"), egg.name_key("West Dragon"))
+
+REAL_CARD = ('<div class="group"><a class="art-wash" tabindex="-1" aria-hidden="true" href="/values/dragon-west">'
+ '<img src="/fruits/dragon-west.webp" alt="" width="112" height="112" loading="lazy" class="x"/>'
+ '<span class="chip"><span class="dot" aria-hidden="true"></span>Mythical</span></a>'
+ '<div class="p"><div class="min-w-0"><a class="block truncate" href="/values/dragon-west">West Dragon</a><p class="t">Beast</p></div>'
+ '<div role="group" aria-label="Price West Dragon as a regular or permanent copy"><button type="button">Regular</button>'
+ '<button type="button">Permanent</button></div>'
+ '<div class="flex"><span class="animate-pop">2.75B</span><span class="inline-flex"><svg width="15"><path d="M3.5 12h16"></path>'
+ '<path d="M15.5 8l4 4-4 4"></path></svg>Stable</span></div>'
+ '<div class="d"><span class="x">Demand</span><span title="Demand 8 out of 10"><span aria-hidden="true"><span class="b"></span></span>'
+ '<span class="x">8<!-- -->/10</span><span class="sr-only">Demand <!-- -->8<!-- --> out of 10</span></span></div>'
+ '<p class="mt-auto" title="$15,000,000"><span>Dealer</span><span>$<!-- -->15M</span></p></div></div>')
+
+class RealSiteMarkup(unittest.TestCase):
+    """Card markup copied from the live bloxfruitsvalues.gg page (Nov 2026): React splits '8/10' and '$15M'."""
+    def test_real_card(self):
+        page = '<html><body><span>1<!-- --> <!-- -->items</span>' + REAL_CARD + '</body></html>'
+        c = parse.parse_list_page(page, "mythical")
+        self.assertEqual(len(c), 1)
+        self.assertEqual((c[0]["id"], c[0]["name"], c[0]["fruit_type"]), ("dragon-west", "West Dragon", "beast"))
+        self.assertEqual((c[0]["physical_value"], c[0]["physical_demand"], c[0]["beli_price"]),
+                         (2_750_000_000, 8, 15_000_000))
+        self.assertEqual((c[0]["market_trend"], c[0]["rarity"]), ("stable", "mythical"))
+
 class FakeFetcher:
     count = 1
     def __init__(self, body=None, err=None): self.body, self.err = body, err
