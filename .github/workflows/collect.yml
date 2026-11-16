@@ -30,7 +30,6 @@ jobs:
           python3 - <<'PY'
           import os, re, html, time, urllib.request
           UA = "BloxTradeAI-Collector/1.0 (+https://github.com/${{ github.repository }})"
-          NAMES = ["Hellfire Gas","Arcsteel Magnet","Starlight Gravity","Runic Fiend Yeti","Lime Blade","Fiend Yeti","Ember Dragon","Meme Fruit","Divine Portal","Galaxy Kitsune","Crimson Kitsune","Werewolf","Torment Pain","Topaz Diamond","Yellow Lightning","Thermite Bomb","Super Spirit Pain","Sadness Pain","Rose Quartz Diamond","Ruby Diamond","Red Lightning","Purple Lightning","Green Lightning","Frustration Pain","Nuclear Bomb","Eagle Requiem","Emerald Diamond","Eagle Glacier","Celestial Pain","Eagle Matrix","Celebration Bomb","Azura Bomb"]
           def get(url):
               time.sleep(2)
               try:
@@ -39,31 +38,23 @@ jobs:
               except Exception as e:
                   return getattr(e, "code", "ERR"), ""
           def text(b):
-              return re.sub(r"\s+", " ", html.unescape(re.sub(r"<[^>]+>", " ", re.sub(r"(?s)<(script|style).*?</\1>", " ", b)))).lower()
-          pages = {"bfv/values": "https://bloxfruitsvalues.gg/values", "egg": "https://eggvalues.com/blox-fruits/values/"}
-          for t in ("mythical", "legendary", "rare", "uncommon", "common"):
-              pages["bfv/" + t] = "https://bloxfruitsvalues.gg/values/rarity/" + t
-          raw, txt, out = {}, {}, []
-          for k, u in pages.items():
-              st, b = get(u)
-              raw[k], txt[k] = b, text(b)
-              out.append("%s -> HTTP %s, %d chars" % (k, st, len(b)))
-          out.append("\n## Where each requested name appears (page keys)")
-          for n in NAMES:
-              out.append("%-22s %s" % (n, [k for k in txt if n.lower() in txt[k]] or "NOWHERE"))
-          out.append("\n## bloxfruitsvalues.gg /values: distinct links")
-          hrefs = sorted(set(re.findall(r'href="(/values[^"#?]*)"', raw["bfv/values"])))
-          out.append(" ".join(h for h in hrefs if h.count("/") <= 2)[:1500])
-          out.append("\n## eggvalues tables")
-          for i, t in enumerate(re.findall(r"(?s)<table.*?</table>", raw["egg"])):
-              rows = re.findall(r"(?s)<tr.*?</tr>", t)
-              out.append("table %d: %d rows" % (i, len(rows)))
-              for r in rows[:3]:
-                  out.append("  " + r[:900])
-              for n in NAMES:
-                  m = [r for r in rows if n.lower() in text(r)]
-                  if m:
-                      out.append("  >> " + n + ": " + m[0][:700])
+              return re.sub(r"\s+", " ", html.unescape(re.sub(r"<[^>]+>", " ", re.sub(r"(?s)<(script|style).*?</\1>", " ", b)))).strip()
+          out = []
+          st, b = get("https://bloxfruitsvalues.gg/values")
+          out.append("## /values -> HTTP %s, %d chars" % (st, len(b)))
+          for slug in ("ember-dragon", "galaxy-kitsune"):
+              k = b.find('href="/values/%s"' % slug)
+              out.append("\n--- /values card html for %s (found=%s) ---" % (slug, k >= 0))
+              if k >= 0:
+                  out.append(b[max(0, k - 400):k + 2600])
+          for slug in ("ember-dragon", "galaxy-kitsune", "runic-yeti", "meme"):
+              st, b = get("https://bloxfruitsvalues.gg/values/" + slug)
+              m = re.search(r'<meta[^>]+(?:name|property)="(?:og:)?description"[^>]+content="([^"]*)"', b)
+              out.append("\n## detail /values/%s -> HTTP %s" % (slug, st))
+              out.append("meta description: " + (html.unescape(m.group(1)) if m else "NONE"))
+              t = text(b)
+              i = t.lower().find(slug.replace("-", " ").split()[0])
+              out.append("text: " + t[max(0, i - 100):i + 900])
           s = "\n".join(out)
           print(s)
           with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as f:
