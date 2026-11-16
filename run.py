@@ -50,9 +50,10 @@ def run(out_dir, primary=None, extras=None, now=None, fallback=_DEFAULT):
     res = primary.collect(prev_by_id, now)
     status = {"checked_at": now, "ok": res.ok, "error": res.error, "requests": res.requests_made}
     others, notes = {}, []
+    fb = providers.EggValuesProvider() if fallback is _DEFAULT else fallback
+    from_fallback = False
     if not res.ok:
         # Fallback only: used when the primary fails. Same validation applies; never merged with the primary.
-        fb = providers.EggValuesProvider() if fallback is _DEFAULT else fallback
         primary_error = res.error
         if fb is None:
             return _fail(out_dir, status, primary_error)
@@ -62,6 +63,26 @@ def run(out_dir, primary=None, extras=None, now=None, fallback=_DEFAULT):
             return _fail(out_dir, status, "%s | fallback %s: %s" % (primary_error, fb.name, res.error))
         notes.append("primary source failed (%s); values come from fallback %s" % (primary_error, fb.name))
         status["ok"], status["error"] = True, None
+        from_fallback = True
+
+    if not from_fallback and fb is not None and hasattr(fb, "collect_extras"):
+        # Fruit skins and limited items (not on the primary's fruit lists). Failure never fails the run:
+        # the previous extras are carried over, marked stale, so the fruit-count guard doesn't misfire.
+        taken = {f["id"] for f in res.fruits}
+        try:
+            extra = fb.collect_extras(taken, now)
+        except (providers.FetchError, parse.ParseError) as e:
+            extra = []
+            for p in prev_by_id.values():
+                if p.get("rarity") in ("skin", "limited") and p["id"] not in taken:
+                    q = dict(p)
+                    q["flags"] = [x for x in p.get("flags", []) if x != "stale: extras source unavailable"] + \
+                        ["stale: extras source unavailable"]
+                    q["confidence_status"] = "partial"
+                    extra.append(q)
+            notes.append("skins/limited items not refreshed: %s" % e)
+        res.fruits = list(res.fruits) + extra
+
     for ex in extras:
         r = ex.collect(prev_by_id, now)
         if r.ok and not validate.validate_batch(r.fruits, 0):

@@ -94,3 +94,47 @@ def parse_values_page(html):
         if out:
             return out
     raise parse.ParseError("eggvalues: no fruit table with Physical/Permanent value columns found")
+
+_TRENDS = {"stable": "stable", "unstable": "unstable", "overpaid": "overpaid", "rising": "rising", "dropping": "dropping"}
+_KINDS = {"fruit skin": "skin", "limited item": "limited", "gamepass": "gamepass", "scrolls": "gamepass"}
+
+def _robux(cell):
+    m = re.match(r"\s*(\d[\d,]*)\s*Robux", cell or "", re.I)
+    return int(m.group(1).replace(",", "")) if m else None
+
+def parse_extras_page(html):
+    """Fruit skins, limited items, gamepasses and scrolls from the 'Item | Kind | Trade value | Demand ...' tables.
+    Returns [{name, category('skin'|'limited'|'gamepass'), type, value, demand, trend, robux, flags}]."""
+    p = _Tables()
+    p.feed(html)
+    rows = []
+    for t in p.tables:
+        head = [c.lower() for c in t[0]]
+        def col(*words):
+            for i, h in enumerate(head):
+                if all(w in h for w in words):
+                    return i
+            return None
+        iv, ik = col("trade", "value"), col("kind")
+        idm, itr, ish = col("demand"), col("trend"), col("shop", "price")
+        if iv is None or ik is None:
+            continue
+        for r in t[1:]:
+            if len(r) <= max(iv, ik) or not r[0].strip():
+                continue
+            kind = r[ik].strip()
+            cat = _KINDS.get(kind.lower())
+            value = _amount(r[iv])
+            if cat is None or value is None:
+                continue
+            trend = _TRENDS.get(r[itr].strip().lower(), "unknown") if itr is not None and itr < len(r) else "unknown"
+            flags = ["extra item from eggvalues.com (%s)" % kind]
+            if trend == "unstable":
+                flags.append("eggvalues: unstable value")
+            rows.append({"name": _CHIPS.sub("", r[0]).strip(), "category": cat, "type": kind.lower(), "value": value,
+                         "trend": trend, "flags": flags,
+                         "demand": _demand(r[idm]) if idm is not None and idm < len(r) else None,
+                         "robux": _robux(r[ish]) if ish is not None and ish < len(r) else None})
+    if not rows:
+        raise parse.ParseError("eggvalues: no skin/limited/gamepass table found")
+    return rows

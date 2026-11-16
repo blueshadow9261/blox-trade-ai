@@ -207,3 +207,22 @@ class EggValuesProvider:
             return ProviderResult(self.name, True, out, requests_made=self.fetcher.count)
         except (FetchError, parse.ParseError) as e:
             return ProviderResult(self.name, False, error=str(e), requests_made=self.fetcher.count)
+
+    def collect_extras(self, taken_ids, now_iso):
+        """Fruit skins + limited items as extra records. Raises FetchError/ParseError (caller decides)."""
+        rows = egg.parse_extras_page(self.fetcher.get(self.PATH))
+        out, seen = [], set(taken_ids)
+        for r in rows:
+            fid = egg.slugify(r["name"])[:64].strip("-")
+            if not fid or fid in seen or len(r["name"]) > 64:
+                continue
+            seen.add(fid)
+            out.append({
+                "id": fid, "name": r["name"], "image": None, "rarity": r["category"], "fruit_type": r["type"],
+                "physical_value": r["value"], "permanent_value": None, "physical_demand": r["demand"],
+                "permanent_demand": None, "beli_price": None, "robux_price": r["robux"], "market_trend": r["trend"],
+                "last_updated": now_iso[:10], "source": self.name, "confidence_status": "partial",
+                "fetched_at": now_iso, "detail_fetched_at": None, "flags": list(r["flags"])})
+        if not out:
+            raise parse.ParseError("eggvalues: no usable skin/limited rows")
+        return out

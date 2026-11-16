@@ -126,7 +126,7 @@ class FakeProvider:
 class RunFlow(unittest.TestCase):
     def test_failure_keeps_cache(self):
         with tempfile.TemporaryDirectory() as d:
-            code, _ = runner.run(d, FakeProvider(True, [rec(id="a"), rec(id="b")]), [], "2026-11-15T00:00:00Z")
+            code, _ = runner.run(d, FakeProvider(True, [rec(id="a"), rec(id="b")]), [], "2026-11-15T00:00:00Z", fallback=None)
             self.assertEqual(code, 0)
             before = open(os.path.join(d, "latest.json")).read()
             code, st = runner.run(d, FakeProvider(False, error="HTTP 503"), [], "2026-11-15T00:30:00Z", fallback=None)
@@ -135,14 +135,14 @@ class RunFlow(unittest.TestCase):
             self.assertFalse(json.load(open(os.path.join(d, "status.json")))["ok"])
     def test_invalid_data_rejected(self):
         with tempfile.TemporaryDirectory() as d:
-            runner.run(d, FakeProvider(True, [rec(id="a"), rec(id="b")]), [], "2026-11-15T00:00:00Z")
+            runner.run(d, FakeProvider(True, [rec(id="a"), rec(id="b")]), [], "2026-11-15T00:00:00Z", fallback=None)
             before = open(os.path.join(d, "latest.json")).read()
-            code, _ = runner.run(d, FakeProvider(True, [rec(id="a", physical_value=-3), rec(id="b")]), [], "2026-11-15T00:30:00Z")
+            code, _ = runner.run(d, FakeProvider(True, [rec(id="a", physical_value=-3), rec(id="b")]), [], "2026-11-15T00:30:00Z", fallback=None)
             self.assertEqual(code, 1); self.assertEqual(open(os.path.join(d, "latest.json")).read(), before)
     def test_history_written_and_flag(self):
         with tempfile.TemporaryDirectory() as d:
-            runner.run(d, FakeProvider(True, [rec(id="a"), rec(id="b")]), [], "2026-11-15T00:00:00Z")
-            runner.run(d, FakeProvider(True, [rec(id="a", physical_value=400), rec(id="b")]), [], "2026-11-15T00:30:00Z")
+            runner.run(d, FakeProvider(True, [rec(id="a"), rec(id="b")]), [], "2026-11-15T00:00:00Z", fallback=None)
+            runner.run(d, FakeProvider(True, [rec(id="a", physical_value=400), rec(id="b")]), [], "2026-11-15T00:30:00Z", fallback=None)
             ev = json.load(open(os.path.join(d, "history.json"), encoding="utf-8"))["events"]
             self.assertEqual(ev[0]["type"], "value")
             snap = json.load(open(os.path.join(d, "latest.json")))
@@ -252,6 +252,50 @@ class RealSiteMarkup(unittest.TestCase):
         self.assertEqual((c[0]["physical_value"], c[0]["physical_demand"], c[0]["beli_price"]),
                          (2_750_000_000, 8, 15_000_000))
         self.assertEqual((c[0]["market_trend"], c[0]["rarity"]), ("stable", "mythical"))
+
+REAL_EXTRAS = ('<table><thead><tr><th>Item</th><th>Kind</th><th class="num">Trade value (adopted)</th><th>Demand</th>'
+ '<th class="num">Other lists range</th><th class="num">Shop price</th></tr></thead><tbody><tr><td>Fruit Notifier</td>'
+ '<td>Gamepass</td><td class="num gold">3.94B</td><td>7/10</td><td>x</td><td>2,700 Robux</td></tr></tbody></table>'
+ '<table><thead><tr><th>Item</th><th>Kind</th><th class="num">Trade value (adopted)</th><th>Demand</th><th>Trend</th></tr></thead><tbody>'
+ '<tr><td>Rabid Dog Blade</td><td>Limited item</td><td class="num gold">23.46B</td><td>8/10</td><td>Unstable</td></tr>'
+ '<tr><td>Doghouse (Frame Break)</td><td>Limited item</td><td class="num gold">11.31B</td><td>8/10</td><td>Unstable</td></tr>'
+ '<tr><td>Hellfire Gas</td><td>Fruit skin</td><td class="num gold">90M</td><td>5/10</td><td>Unstable</td></tr>'
+ '<tr><td>Arcsteel Magnet</td><td>Fruit skin</td><td class="num gold">1.8B</td><td>6/10</td><td>Stable</td></tr>'
+ '<tr><td>Odd Row</td><td>Mystery</td><td class="num gold">1M</td><td>1/10</td><td>Stable</td></tr></tbody></table>')
+
+class FakeEggExtras:
+    name = "eggvalues.com"
+    def __init__(self, body=None, err=None): self.f, self.err = FakeFetcher(body, err), err
+    def collect_extras(self, taken, now): return providers.EggValuesProvider(self.f).collect_extras(taken, now)
+    def collect(self, prev, now): return providers.ProviderResult("eggvalues.com", False, error="unused")
+
+class Extras(unittest.TestCase):
+    def test_parse_all_kinds_and_skips_unknown(self):
+        rows = egg.parse_extras_page(REAL_EXTRAS)
+        self.assertEqual([r["name"] for r in rows], ["Fruit Notifier", "Rabid Dog Blade", "Doghouse (Frame Break)", "Hellfire Gas", "Arcsteel Magnet"])
+        self.assertEqual((rows[3]["category"], rows[3]["value"], rows[3]["demand"], rows[3]["trend"]), ("skin", 90_000_000, 5, "unstable"))
+        self.assertEqual(rows[1]["category"], "limited")
+        self.assertEqual((rows[0]["category"], rows[0]["robux"], rows[0]["value"]), ("gamepass", 2700, 3_940_000_000))
+    def test_records_validate(self):
+        recs = providers.EggValuesProvider(FakeFetcher(REAL_EXTRAS)).collect_extras({"x"}, "2026-11-15T00:00:00Z")
+        self.assertEqual(validate.validate_batch(recs, 0), [])
+        self.assertIn("doghouse-frame-break", [r["id"] for r in recs])
+    def test_id_collision_with_fruit_skipped(self):
+        recs = providers.EggValuesProvider(FakeFetcher(REAL_EXTRAS)).collect_extras({"hellfire-gas"}, "2026-11-15T00:00:00Z")
+        self.assertNotIn("hellfire-gas", [r["id"] for r in recs])
+    def test_run_adds_extras_then_carries_them_when_egg_fails(self):
+        base = [rec(id="venom", name="Venom"), rec(id="magma", name="Magma"), rec(id="gas", name="Gas")]
+        with tempfile.TemporaryDirectory() as d:
+            code, st = runner.run(d, FakeProvider(True, base), [], "2026-11-15T00:00:00Z", fallback=FakeEggExtras(REAL_EXTRAS))
+            snap = json.load(open(d + "/latest.json"))
+            ids = {f["id"] for f in snap["fruits"]}
+            self.assertTrue({"hellfire-gas", "arcsteel-magnet", "venom"} <= ids)
+            code, st = runner.run(d, FakeProvider(True, base), [], "2026-11-15T01:00:00Z", fallback=FakeEggExtras(err="blocked"))
+            snap = json.load(open(d + "/latest.json"))
+            by = {f["id"]: f for f in snap["fruits"]}
+            self.assertEqual(code, 0)
+            self.assertIn("stale: extras source unavailable", by["hellfire-gas"]["flags"])
+            self.assertTrue(any("not refreshed" in n for n in snap["notes"]))
 
 class FakeFetcher:
     count = 1

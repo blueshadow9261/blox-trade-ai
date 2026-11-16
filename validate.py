@@ -3,8 +3,8 @@ import re
 from . import config
 
 ID_RE = re.compile(r"^[a-z0-9][a-z0-9-]{0,63}$")
-RARITIES = {"common", "uncommon", "rare", "legendary", "mythical"}
-TRENDS = {"stable", "overpaid", "rising", "dropping", "unknown"}
+RARITIES = {"common", "uncommon", "rare", "legendary", "mythical", "skin", "limited", "gamepass"}
+TRENDS = {"stable", "overpaid", "rising", "dropping", "unstable", "unknown"}
 STATUSES = {"verified", "partial", "needs_review", "conflict"}
 REQUIRED = ["id", "name", "image", "rarity", "fruit_type", "physical_value", "permanent_value",
             "physical_demand", "permanent_demand", "beli_price", "robux_price", "market_trend",
