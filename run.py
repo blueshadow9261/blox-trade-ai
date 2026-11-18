@@ -70,7 +70,7 @@ def run(out_dir, primary=None, extras=None, now=None, fallback=_DEFAULT):
         # the previous extras are carried over, marked stale, so the fruit-count guard doesn't misfire.
         taken = {f["id"] for f in res.fruits}
         try:
-            extra = fb.collect_extras(taken, now)
+            extra = fb.collect_extras(taken, now, [f["name"] for f in res.fruits])
         except (providers.FetchError, parse.ParseError) as e:
             extra = []
             for p in prev_by_id.values():

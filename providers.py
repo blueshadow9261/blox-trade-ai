@@ -87,9 +87,40 @@ class BloxFruitsValuesProvider:
                     raise parse.ParseError("fruit listed in two tiers: " + c["id"])
                 by_id[c["id"]] = c
             fruits = self._build(by_id, previous_by_id, now_iso)
+            fruits += self._limited(by_id, previous_by_id, now_iso)
             return ProviderResult(self.name, True, fruits, requests_made=self.fetcher.count)
         except (FetchError, parse.ParseError) as e:
             return ProviderResult(self.name, False, error=str(e), requests_made=self.fetcher.count)
+
+    def _limited(self, by_id, prev, now):
+        """Limited items from the main /values page. Never fails the run: on error the previous ones are kept, marked stale."""
+        try:
+            cards = parse.parse_limited_cards(self.fetcher.get("/values"))
+            if not cards:
+                raise parse.ParseError("no limited cards found")
+        except (FetchError, parse.ParseError):
+            out = []
+            for p in prev.values():
+                if p.get("rarity") == "limited" and p.get("source") == self.name and p["id"] not in by_id:
+                    q = dict(p)
+                    q["flags"] = [f for f in p.get("flags", []) if f != "stale: limited list unavailable"] + ["stale: limited list unavailable"]
+                    out.append(q)
+            return out
+        out = []
+        for c in cards:
+            if c["id"] in by_id:
+                continue
+            p = prev.get(c["id"]) or {}
+            out.append({
+                "id": c["id"], "name": c["name"],
+                "image": c["image"] or "https://bloxfruitsvalues.gg/fruits/%s.webp" % c["id"],
+                "rarity": "limited", "fruit_type": "limited", "physical_value": c["physical_value"],
+                "permanent_value": None, "physical_demand": c["physical_demand"], "permanent_demand": None,
+                "beli_price": None, "robux_price": None, "market_trend": c["market_trend"],
+                "last_updated": p.get("last_updated") or now[:10], "source": self.name,
+                "confidence_status": "partial", "fetched_at": now, "detail_fetched_at": p.get("detail_fetched_at"),
+                "flags": ["limited item (list card only)"]})
+        return out
 
     def _build(self, by_id, prev, now):
         # decide which detail pages to fetch
@@ -208,15 +239,17 @@ class EggValuesProvider:
         except (FetchError, parse.ParseError) as e:
             return ProviderResult(self.name, False, error=str(e), requests_made=self.fetcher.count)
 
-    def collect_extras(self, taken_ids, now_iso):
+    def collect_extras(self, taken_ids, now_iso, taken_names=()):
         """Fruit skins + limited items as extra records. Raises FetchError/ParseError (caller decides)."""
         rows = egg.parse_extras_page(self.fetcher.get(self.PATH))
         out, seen = [], set(taken_ids)
+        keys = {egg.dedupe_key(n) for n in taken_names}
         for r in rows:
             fid = egg.slugify(r["name"])[:64].strip("-")
-            if not fid or fid in seen or len(r["name"]) > 64:
+            if not fid or fid in seen or len(r["name"]) > 64 or egg.dedupe_key(r["name"]) in keys:
                 continue
             seen.add(fid)
+            keys.add(egg.dedupe_key(r["name"]))
             out.append({
                 "id": fid, "name": r["name"], "image": None, "rarity": r["category"], "fruit_type": r["type"],
                 "physical_value": r["value"], "permanent_value": None, "physical_demand": r["demand"],

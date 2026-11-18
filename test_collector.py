@@ -194,7 +194,10 @@ class ProviderBuild(unittest.TestCase):
         for t in ("legendary", "rare", "uncommon", "common"): pages["/values/rarity/" + t] = list_page([], 0)
         class F:
             count = 0
-            def get(self, p): return pages[p]
+            def get(self, p):
+                if p not in pages:
+                    raise providers.FetchError("HTTP 404 " + p)   # e.g. the optional /values limited list
+                return pages[p]
         r = providers.BloxFruitsValuesProvider(F()).collect({}, "2026-11-15T10:00:00Z")
         self.assertEqual(r.fruits[0]["confidence_status"], "needs_review")
     def test_one_bad_tier_fails_whole_run(self):
@@ -266,7 +269,7 @@ REAL_EXTRAS = ('<table><thead><tr><th>Item</th><th>Kind</th><th class="num">Trad
 class FakeEggExtras:
     name = "eggvalues.com"
     def __init__(self, body=None, err=None): self.f, self.err = FakeFetcher(body, err), err
-    def collect_extras(self, taken, now): return providers.EggValuesProvider(self.f).collect_extras(taken, now)
+    def collect_extras(self, taken, now, names=()): return providers.EggValuesProvider(self.f).collect_extras(taken, now, names)
     def collect(self, prev, now): return providers.ProviderResult("eggvalues.com", False, error="unused")
 
 class Extras(unittest.TestCase):
@@ -296,6 +299,61 @@ class Extras(unittest.TestCase):
             self.assertEqual(code, 0)
             self.assertIn("stale: extras source unavailable", by["hellfire-gas"]["flags"])
             self.assertTrue(any("not refreshed" in n for n in snap["notes"]))
+
+LIMITED_PAGE = ('<div class="g"><a class="art-wash" tabindex="-1" aria-hidden="true" href="/values/ember-dragon">'
+ '<img src="/fruits/ember-dragon.webp" alt="" width="112" height="112"/><span class="chip"><span class="dot" aria-hidden="true"></span>Limited</span></a>'
+ '<div class="p"><div class="min-w-0"><a class="block" href="/values/ember-dragon">Ember Dragon</a><p class="t">Limited</p></div>'
+ '<div class="flex"><span class="animate-pop">6.15B</span><span class="inline-flex"><svg width="15"><path d="M11 3.5"></path></svg>Overpaid</span></div>'
+ '<div class="d"><span>Demand</span><span title="Demand 8 out of 10"><span aria-hidden="true"><span class="b"></span></span>'
+ '<span class="x">8<!-- -->/10</span><span class="sr-only">Demand <!-- -->8<!-- --> out of 10</span></span></div></div></div>'
+ '<div class="g"><a href="/values/meme"><img src="/fruits/meme.webp" alt=""/><span><span class="dot"></span>Limited</span></a>'
+ '<div><a href="/values/meme">Meme</a><p>Limited</p></div><div><span>5.85B</span><span>Overpaid</span></div>'
+ '<div><span>Demand</span><span><span class="x">8<!-- -->/10</span><span class="sr-only">Demand <!-- -->8<!-- --> out of 10</span></span></div></div>')
+
+class LimitedAndDedupe(unittest.TestCase):
+    def test_parse_limited_cards(self):
+        c = parse.parse_limited_cards("<html><body>" + LIMITED_PAGE + "</body></html>")
+        self.assertEqual([x["id"] for x in c], ["ember-dragon", "meme"])
+        self.assertEqual((c[0]["name"], c[0]["physical_value"], c[0]["physical_demand"], c[0]["market_trend"]),
+                         ("Ember Dragon", 6_150_000_000, 8, "overpaid"))
+        self.assertTrue(c[0]["image"].endswith("/fruits/ember-dragon.webp"))
+    def test_regular_cards_are_not_limited_cards(self):
+        page = "<html><body>" + REAL_CARD + "</body></html>"
+        self.assertEqual(parse.parse_limited_cards(page), [])
+    def test_dedupe_key(self):
+        self.assertEqual(egg.dedupe_key("Arc Steel Magnet"), egg.dedupe_key("Arcsteel Magnet"))
+        self.assertEqual(egg.dedupe_key("Matrix Eagle"), egg.dedupe_key("Eagle Matrix"))
+        self.assertNotEqual(egg.dedupe_key("Fiend Yeti"), egg.dedupe_key("Runic Yeti"))
+    def test_extras_skip_items_the_primary_already_has(self):
+        recs = providers.EggValuesProvider(FakeFetcher(REAL_EXTRAS)).collect_extras(set(), "2026-11-15T00:00:00Z", ["Arc Steel Magnet", "Hell Fire Gas"])
+        ids = [r["id"] for r in recs]
+        self.assertNotIn("arcsteel-magnet", ids)
+        self.assertNotIn("hellfire-gas", ids)
+        self.assertIn("rabid-dog-blade", ids)
+
+class PrimaryLimited(unittest.TestCase):
+    def _fetcher(self, with_values):
+        pages = {"/values/rarity/mythical": list_page([DRAGON]), "/values/dragon-west": KIT}
+        for t in ("legendary", "rare", "uncommon", "common"): pages["/values/rarity/" + t] = list_page([], 0)
+        if with_values: pages["/values"] = "<html><body>" + LIMITED_PAGE + "</body></html>"
+        class F:
+            count = 0
+            def get(self, p):
+                if p not in pages: raise providers.FetchError("HTTP 404 " + p)
+                return pages[p]
+        return F()
+    def test_limited_items_added_and_valid(self):
+        r = providers.BloxFruitsValuesProvider(self._fetcher(True)).collect({}, "2026-11-15T10:00:00Z")
+        by = {f["id"]: f for f in r.fruits}
+        self.assertTrue({"dragon-west", "ember-dragon", "meme"} <= set(by))
+        self.assertEqual((by["ember-dragon"]["rarity"], by["ember-dragon"]["physical_value"]), ("limited", 6_150_000_000))
+        self.assertEqual(validate.validate_batch(r.fruits, 0), [])
+    def test_limited_list_failure_keeps_previous_stale(self):
+        prev = {"meme": dict(rec(id="meme", name="Meme"), rarity="limited", source="bloxfruitsvalues.gg", flags=[])}
+        r = providers.BloxFruitsValuesProvider(self._fetcher(False)).collect(prev, "2026-11-15T10:00:00Z")
+        self.assertTrue(r.ok)
+        by = {f["id"]: f for f in r.fruits}
+        self.assertIn("stale: limited list unavailable", by["meme"]["flags"])
 
 class FakeFetcher:
     count = 1

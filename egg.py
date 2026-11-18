@@ -138,3 +138,8 @@ def parse_extras_page(html):
     if not rows:
         raise parse.ParseError("eggvalues: no skin/limited/gamepass table found")
     return rows
+
+def dedupe_key(name):
+    """Spelling/order-insensitive key: 'Arc Steel Magnet' == 'Arcsteel Magnet', 'Matrix Eagle' == 'Eagle Matrix'."""
+    words = [w for w in re.findall(r"[a-z0-9]+", name.lower()) if w != "form"]
+    return "".join(sorted("".join(words)))

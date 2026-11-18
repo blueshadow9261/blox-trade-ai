@@ -12,7 +12,7 @@ class ParseError(Exception):
 _SUFFIX = {"": 1, "K": 10**3, "M": 10**6, "B": 10**9, "T": 10**12}
 NUM = r"\d[\d.,]*[KMBT]?"
 RARITIES = ("common", "uncommon", "rare", "legendary", "mythical")
-TRENDS = {"stable": "stable", "overpaid": "overpaid", "rising": "rising", "dropping": "dropping"}
+TRENDS = {"stable": "stable", "overpaid": "overpaid", "rising": "rising", "dropping": "dropping", "unstable": "unstable"}
 
 def parse_amount(text):
     """'2.75B' -> 2750000000, '450,000,000' -> 450000000. Returns int or None.
@@ -79,6 +79,27 @@ _CARD = re.compile(
     r"(?P<value>" + NUM + r")\s*(?P<trend>Stable|Overpaid|Rising|Dropping)? ?"
     r"Demand\s*(?P<demand>\d{1,2})\s*/\s*10(?: Demand \d+ out of 10)?"
     r"(?: Dealer \$\s*(?P<beli>" + NUM + r"))?")
+
+_LIMITED = re.compile(
+    r"@@SLUG:(?P<slug>[a-z0-9-]+)@@ (?:@@IMG:(?P<img>\S+?)@@ )?Limited "
+    r"@@SLUG:(?P=slug)@@ (?:@@IMG:\S+?@@ )?(?P<name>[^@]+?) Limited "
+    r"(?P<value>" + NUM + r")\s*(?P<trend>Stable|Overpaid|Rising|Dropping|Unstable)? ?"
+    r"Demand\s*(?P<demand>\d{1,2})\s*/\s*10")
+
+def parse_limited_cards(html):
+    """Cards labelled 'Limited' on the main /values page (no Regular/Permanent toggle). Returns [] if none."""
+    text, _ = page_stream(html)
+    out, seen = [], set()
+    for m in _LIMITED.finditer(text):
+        slug = m.group("slug")
+        value = parse_amount(m.group("value"))
+        if slug in seen or value is None or int(m.group("demand")) > 10:
+            continue
+        seen.add(slug)
+        out.append({"id": slug, "name": m.group("name").strip(), "image": m.group("img"),
+                    "physical_value": value, "physical_demand": int(m.group("demand")),
+                    "market_trend": TRENDS.get((m.group("trend") or "").lower(), "unknown")})
+    return out
 
 def parse_list_page(html, tier):
     """Return list of raw cards for one rarity page. Raises ParseError if the card count does
